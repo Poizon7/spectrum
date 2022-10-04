@@ -17,6 +17,7 @@ fn gcd(e: i128, t: i128, x: &mut i128, y: &mut i128) -> i128 {
   *y = x1;
   return gcd;
 }
+
 fn EMod(m: u128, e: u128, n: u128) -> u128 {
   let mut c = 1;
   let mut f = 0;
@@ -56,6 +57,7 @@ pub fn GenerateKey() -> (u128, u128, u128) {
 pub fn Encrypt(m: u128, e: u128, n: u128) -> u128 {
   EMod(m, e, n)
 }
+
 pub fn Decrypt(m: u128, d: u128, n: u128) -> u128 {
   EMod(m, d, n)
 }

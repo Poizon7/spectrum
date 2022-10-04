@@ -6,9 +6,9 @@ use rand::Rng;
 // Key enums
 #[derive(Copy, Clone, Debug)]
 pub enum Key {
-    Key128bit(Key128bit),
-    Key192bit(Key192bit),
-    Key256bit(Key256bit),
+    Key128bit([u8; 176]),
+    Key192bit([u8; 208]),
+    Key256bit([u8; 240]),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -16,22 +16,6 @@ pub enum KeyLength {
     Bit128(Option<[u8; 16]>),
     Bit192(Option<[u8; 24]>),
     Bit256(Option<[u8; 32]>),
-}
-
-// Key structs
-#[derive(Copy, Clone, Debug)]
-pub struct Key128bit {
-    pub key: [u8; 176],
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct Key192bit {
-    pub key: [u8; 208],
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct Key256bit {
-    pub key: [u8; 240],
 }
 
 // Key generation functions
@@ -198,9 +182,7 @@ pub fn GenerateKey(bit: &KeyLength) -> Key {
                 Some(initKey) => *initKey,
                 None => Generate128InitKey(),
             };
-            let key = Key128bit {
-                key: Expand128Key(initKey),
-            };
+            let key = Expand128Key(initKey);
 
             Key::Key128bit(key)
         }
@@ -209,9 +191,7 @@ pub fn GenerateKey(bit: &KeyLength) -> Key {
                 Some(initKey) => *initKey,
                 None => Generate192InitKey(),
             };
-            let key = Key192bit {
-                key: Expand192Key(initKey),
-            };
+            let key = Expand192Key(initKey);
 
             Key::Key192bit(key)
         }
@@ -220,9 +200,7 @@ pub fn GenerateKey(bit: &KeyLength) -> Key {
                 Some(initKey) => *initKey,
                 None => Generate256InitKey(),
             };
-            let key = Key256bit {
-                key: Expand256Key(initKey),
-            };
+            let key = Expand256Key(initKey);
 
             Key::Key256bit(key)
         }
@@ -342,7 +320,7 @@ fn MixColumns(matrix: &mut [u8; 16]) {
 fn EncryptionAlgorithm(matrix: &mut [u8; 16], key: &Key) {
     match key {
         Key::Key128bit(key) => {
-            AddKey(matrix, &key.key[0..16]);
+            AddKey(matrix, &key[0..16]);
 
             for round in 1..=9 {
                 for i in 0..16 {
@@ -351,7 +329,7 @@ fn EncryptionAlgorithm(matrix: &mut [u8; 16], key: &Key) {
 
                 ShiftRows(matrix);
                 MixColumns(matrix);
-                AddKey(matrix, &key.key[(round * 16)..((round * 16) + 16)]);
+                AddKey(matrix, &key[(round * 16)..((round * 16) + 16)]);
             }
 
             for i in 0..16 {
@@ -359,10 +337,10 @@ fn EncryptionAlgorithm(matrix: &mut [u8; 16], key: &Key) {
             }
 
             ShiftRows(matrix);
-            AddKey(matrix, &key.key[160..176]);
+            AddKey(matrix, &key[160..176]);
         }
         Key::Key192bit(key) => {
-            AddKey(matrix, &key.key[0..16]);
+            AddKey(matrix, &key[0..16]);
 
             for round in 1..=11 {
                 for i in 0..16 {
@@ -371,7 +349,7 @@ fn EncryptionAlgorithm(matrix: &mut [u8; 16], key: &Key) {
 
                 ShiftRows(matrix);
                 MixColumns(matrix);
-                AddKey(matrix, &key.key[(round * 16)..((round * 16) + 16)]);
+                AddKey(matrix, &key[(round * 16)..((round * 16) + 16)]);
             }
 
             for i in 0..16 {
@@ -379,10 +357,10 @@ fn EncryptionAlgorithm(matrix: &mut [u8; 16], key: &Key) {
             }
 
             ShiftRows(matrix);
-            AddKey(matrix, &key.key[192..208]);
+            AddKey(matrix, &key[192..208]);
         }
         Key::Key256bit(key) => {
-            AddKey(matrix, &key.key[0..16]);
+            AddKey(matrix, &key[0..16]);
 
             for round in 1..=13 {
                 for i in 0..16 {
@@ -391,7 +369,7 @@ fn EncryptionAlgorithm(matrix: &mut [u8; 16], key: &Key) {
 
                 ShiftRows(matrix);
                 MixColumns(matrix);
-                AddKey(matrix, &key.key[(round * 16)..((round * 16) + 16)]);
+                AddKey(matrix, &key[(round * 16)..((round * 16) + 16)]);
             }
 
             for i in 0..16 {
@@ -399,7 +377,7 @@ fn EncryptionAlgorithm(matrix: &mut [u8; 16], key: &Key) {
             }
 
             ShiftRows(matrix);
-            AddKey(matrix, &key.key[224..240]);
+            AddKey(matrix, &key[224..240]);
         }
     }
 }
@@ -479,7 +457,7 @@ fn ReverseMixColumns(matrix: &mut [u8; 16]) {
 fn DecryptionAlgorithm(matrix: &mut [u8; 16], key: &Key) {
     match key {
         Key::Key128bit(key) => {
-            AddKey(matrix, &key.key[160..176]);
+            AddKey(matrix, &key[160..176]);
             ReverseShiftRows(matrix);
 
             for i in 0..16 {
@@ -487,7 +465,7 @@ fn DecryptionAlgorithm(matrix: &mut [u8; 16], key: &Key) {
             }
 
             for round in (1..=9).rev() {
-                AddKey(matrix, &key.key[(round * 16)..((round * 16) + 16)]);
+                AddKey(matrix, &key[(round * 16)..((round * 16) + 16)]);
                 ReverseMixColumns(matrix);
                 ReverseShiftRows(matrix);
 
@@ -496,10 +474,10 @@ fn DecryptionAlgorithm(matrix: &mut [u8; 16], key: &Key) {
                 }
             }
 
-            AddKey(matrix, &key.key[0..16]);
+            AddKey(matrix, &key[0..16]);
         }
         Key::Key192bit(key) => {
-            AddKey(matrix, &key.key[192..208]);
+            AddKey(matrix, &key[192..208]);
             ReverseShiftRows(matrix);
 
             for i in 0..16 {
@@ -507,7 +485,7 @@ fn DecryptionAlgorithm(matrix: &mut [u8; 16], key: &Key) {
             }
 
             for round in (1..=11).rev() {
-                AddKey(matrix, &key.key[(round * 16)..((round * 16) + 16)]);
+                AddKey(matrix, &key[(round * 16)..((round * 16) + 16)]);
                 ReverseMixColumns(matrix);
                 ReverseShiftRows(matrix);
 
@@ -516,10 +494,10 @@ fn DecryptionAlgorithm(matrix: &mut [u8; 16], key: &Key) {
                 }
             }
 
-            AddKey(matrix, &key.key[0..16]);
+            AddKey(matrix, &key[0..16]);
         }
         Key::Key256bit(key) => {
-            AddKey(matrix, &key.key[224..240]);
+            AddKey(matrix, &key[224..240]);
             ReverseShiftRows(matrix);
 
             for i in 0..16 {
@@ -527,7 +505,7 @@ fn DecryptionAlgorithm(matrix: &mut [u8; 16], key: &Key) {
             }
 
             for round in (1..=13).rev() {
-                AddKey(matrix, &key.key[(round * 16)..((round * 16) + 16)]);
+                AddKey(matrix, &key[(round * 16)..((round * 16) + 16)]);
                 ReverseMixColumns(matrix);
                 ReverseShiftRows(matrix);
 
@@ -536,7 +514,7 @@ fn DecryptionAlgorithm(matrix: &mut [u8; 16], key: &Key) {
                 }
             }
 
-            AddKey(matrix, &key.key[0..16]);
+            AddKey(matrix, &key[0..16]);
         }
     }
 }
