@@ -4,14 +4,14 @@ extern crate rand;
 use rand::Rng;
 
 // Key enums
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Key {
     Key128bit([u8; 176]),
     Key192bit([u8; 208]),
     Key256bit([u8; 240]),
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum KeyLength {
     Bit128(Option<[u8; 16]>),
     Bit192(Option<[u8; 24]>),
@@ -19,120 +19,145 @@ pub enum KeyLength {
 }
 
 // Key generation functions
-// 128-bit
-fn Generate128InitKey() -> [u8; 16] {
-    let mut key = [0; 16];
-    for i in 0..16 {
-        key[i] = rand::thread_rng().gen();
+fn GenerateInitKey(initKey: &KeyLength) -> KeyLength {
+    match initKey {
+        KeyLength::Bit128(_) => {
+            let mut key = [0; 16];
+            for i in 0..16 {
+                key[i] = rand::thread_rng().gen();
+            }
+            KeyLength::Bit128(Some(key))
+        }
+        KeyLength::Bit192(_) => {
+            let mut key = [0; 24];
+            for i in 0..24 {
+                key[i] = rand::thread_rng().gen();
+            }
+            KeyLength::Bit192(Some(key))
+        }
+        KeyLength::Bit256(_) => {
+            let mut key = [0; 32];
+            for i in 0..32 {
+                key[i] = rand::thread_rng().gen();
+            }
+            KeyLength::Bit256(Some(key))
+        }
     }
-    key
 }
-fn Expand128Key(initKey: [u8; 16]) -> [u8; 176] {
-    let mut temp: [u8; 4] = [0, 0, 0, 0];
-    let mut c: u8 = 16;
-    let mut i = 1;
-    let mut key = [0; 176];
 
-    for byte in initKey {
-        key[i as usize] = byte;
+fn ExpandKey(initKey: &KeyLength) -> Key {
+    let mut temp: [u8; 4] = [0, 0, 0, 0];
+    let mut c: u8 = match initKey {
+        KeyLength::Bit128(_) => 16,
+        KeyLength::Bit192(_) => 24,
+        KeyLength::Bit256(_) => 32,
+    };
+    let mut i = 1;
+    let key = match initKey {
+        KeyLength::Bit128(_) => Key::Key128bit([0; 176]),
+        KeyLength::Bit192(_) => Key::Key192bit([0; 208]),
+        KeyLength::Bit256(_) => Key::Key256bit([0; 240]),
+    };
+
+    match key {
+        Key::Key128bit(mut key) => {
+            for byte in match initKey {
+                KeyLength::Bit128(initKey) => initKey.unwrap(),
+                _ => panic!("Missmatch between init key and key"),
+            } {
+                key[i as usize] = byte;
+            }
+        }
+        Key::Key192bit(mut key) => {
+            for byte in match initKey {
+                KeyLength::Bit192(initKey) => initKey.unwrap(),
+                _ => panic!("Missmatch between init key and key"),
+            } {
+                key[i as usize] = byte;
+            }
+        }
+        Key::Key256bit(mut key) => {
+            for byte in match initKey {
+                KeyLength::Bit256(initKey) => initKey.unwrap(),
+                _ => panic!("Missmatch between init key and key"),
+            } {
+                key[i as usize] = byte;
+            }
+        }
     }
 
-    while c < 176 {
-        for j in 0..4 {
-            temp[j] = key[(j as u8 + c - 4) as usize];
+    while c < match key {
+        Key::Key128bit(_) => 176,
+        Key::Key192bit(_) => 208,
+        Key::Key256bit(_) => 240,
+    } {
+        match key {
+            Key::Key128bit(key) => {
+                for j in 0..4 {
+                    temp[j] = key[(j as u8 + c - 4) as usize];
+                }
+            }
+            Key::Key192bit(key) => {
+                for j in 0..4 {
+                    temp[j] = key[(j as u8 + c - 4) as usize];
+                }
+            }
+            Key::Key256bit(key) => {
+                for j in 0..4 {
+                    temp[j] = key[(j as u8 + c - 4) as usize];
+                }
+            }
         }
 
-        if c % 16 == 0 {
+        if c % match key {
+            Key::Key128bit(_) => 16,
+            Key::Key192bit(_) => 24,
+            Key::Key256bit(_) => 32,
+        } == 0
+        {
             ScheduleCore(&mut temp, i);
             i += 1;
         }
 
-        for j in 0..4 {
-            key[c as usize] = key[c as usize - 16] ^ temp[j];
-            c += 1;
-        }
-    }
-    key
-}
-
-// 192-bit
-fn Generate192InitKey() -> [u8; 24] {
-    let mut key = [0; 24];
-    for i in 0..16 {
-        key[i] = rand::thread_rng().gen();
-    }
-    key
-}
-fn Expand192Key(initKey: [u8; 24]) -> [u8; 208] {
-    let mut temp: [u8; 4] = [0, 0, 0, 0];
-    let mut c: u8 = 24;
-    let mut i = 1;
-    let mut key = [0; 208];
-
-    for byte in initKey {
-        key[i as usize] = byte;
-    }
-
-    while c < 208 {
-        for j in 0..4 {
-            temp[j] = key[(j as u8 + c - 4) as usize];
-        }
-
-        if c % 24 == 0 {
-            ScheduleCore(&mut temp, i);
-            i += 1;
-        }
-
-        for j in 0..4 {
-            key[c as usize] = key[c as usize - 24] ^ temp[j];
-            c += 1;
-        }
-    }
-    key
-}
-
-// 256-bit
-fn Generate256InitKey() -> [u8; 32] {
-    let mut key = [0; 32];
-    for i in 0..32 {
-        key[i] = rand::thread_rng().gen();
-    }
-    key
-}
-fn Expand256Key(initKey: [u8; 32]) -> [u8; 240] {
-    let mut temp: [u8; 4] = [0, 0, 0, 0];
-    let mut c: u8 = 32;
-    let mut i = 1;
-    let mut key = [0; 240];
-
-    for byte in initKey {
-        key[i as usize] = byte;
-    }
-
-    while c < 240 {
-        for j in 0..4 {
-            temp[j] = key[(j as u8 + c - 4) as usize];
-        }
-
-        if c % 32 == 0 {
-            ScheduleCore(&mut temp, i);
-            i += 1;
-        }
-
-        if c % 32 == 16 {
+        if match key {
+            Key::Key256bit(_) => true,
+            _ => false,
+        } && c % 32 == 16
+        {
             for j in 0..4 {
                 Sbox(temp[j]);
             }
         }
 
-        for j in 0..4 {
-            key[c as usize] = key[(c - 16) as usize] ^ temp[j];
-            c += 1;
+        match key {
+            Key::Key128bit(mut key) => {
+                for j in 0..4 {
+                    key[c as usize] = key[(c - 16) as usize] ^ temp[j];
+                    c += 1;
+                }
+            }
+            Key::Key192bit(mut key) => {
+                for j in 0..4 {
+                    key[c as usize] = key[(c - 24) as usize] ^ temp[j];
+                    c += 1;
+                }
+            }
+            Key::Key256bit(mut key) => {
+                for j in 0..4 {
+                    key[c as usize] = key[(c - 16) as usize] ^ temp[j];
+                    c += 1;
+                }
+            }
         }
 
-        for j in 0..4 {
-            key[c as usize] = key[c as usize - 32] ^ temp[j];
-            c += 1;
+        match key {
+            Key::Key256bit(mut key) => {
+                for j in 0..4 {
+                    key[c as usize] = key[c as usize - 32] ^ temp[j];
+                    c += 1;
+                }
+            }
+            _ => {}
         }
     }
     key
@@ -148,6 +173,7 @@ fn Rotate(byte: &mut [u8; 4]) {
 
     byte[3] = temp;
 }
+
 fn Rcon(mut byte: u8) -> u8 {
     let mut c: u8 = 1;
 
@@ -166,6 +192,7 @@ fn Rcon(mut byte: u8) -> u8 {
 
     return c;
 }
+
 fn ScheduleCore(byte: &mut [u8; 4], i: u8) {
     Rotate(byte);
     for j in 0..4 {
@@ -178,31 +205,28 @@ fn ScheduleCore(byte: &mut [u8; 4], i: u8) {
 pub fn GenerateKey(bit: &KeyLength) -> Key {
     match bit {
         KeyLength::Bit128(initKey) => {
-            let initKey = match initKey {
-                Some(initKey) => *initKey,
-                None => Generate128InitKey(),
+            let initKey = if initKey.is_none() {
+                GenerateInitKey(bit)
+            } else {
+                KeyLength::Bit128(*initKey)
             };
-            let key = Expand128Key(initKey);
-
-            Key::Key128bit(key)
+            ExpandKey(&initKey)
         }
         KeyLength::Bit192(initKey) => {
-            let initKey = match initKey {
-                Some(initKey) => *initKey,
-                None => Generate192InitKey(),
+            let initKey = if initKey.is_none() {
+                GenerateInitKey(bit)
+            } else {
+                KeyLength::Bit192(*initKey)
             };
-            let key = Expand192Key(initKey);
-
-            Key::Key192bit(key)
+            ExpandKey(&initKey)
         }
         KeyLength::Bit256(initKey) => {
-            let initKey = match initKey {
-                Some(initKey) => *initKey,
-                None => Generate256InitKey(),
+            let initKey = if initKey.is_none() {
+                GenerateInitKey(bit)
+            } else {
+                KeyLength::Bit256(*initKey)
             };
-            let key = Expand256Key(initKey);
-
-            Key::Key256bit(key)
+            ExpandKey(&initKey)
         }
     }
 }
@@ -222,11 +246,13 @@ fn PlainToMatrix(plain: &str) -> [u8; 16] {
         plain[6], plain[10], plain[14], plain[3], plain[7], plain[11], plain[15],
     ]
 }
+
 fn AddKey(matrix: &mut [u8; 16], key: &[u8]) {
     for i in 0..16 {
         matrix[(i)] ^= key[i];
     }
 }
+
 fn FFM(n1: u8, n2: u8) -> u8 {
     let mut a: u8 = n1;
     let mut b: u8 = n2;
@@ -276,6 +302,7 @@ fn Sbox(byte: u8) -> u8 {
 
     sbox[byte as usize]
 }
+
 fn ShiftRows(matrix: &mut [u8; 16]) {
     let temp = matrix[4];
 
@@ -301,6 +328,7 @@ fn ShiftRows(matrix: &mut [u8; 16]) {
 
     matrix[12] = temp;
 }
+
 fn MixColumns(matrix: &mut [u8; 16]) {
     for i in 0..4 {
         let c = [
@@ -413,6 +441,7 @@ fn ReverseSbox(byte: u8) -> u8 {
 
     0
 }
+
 fn ReverseShiftRows(matrix: &mut [u8; 16]) {
     let temp = matrix[7];
 
@@ -438,6 +467,7 @@ fn ReverseShiftRows(matrix: &mut [u8; 16]) {
 
     matrix[15] = temp;
 }
+
 fn ReverseMixColumns(matrix: &mut [u8; 16]) {
     for i in 0..4 {
         let c = [
@@ -540,6 +570,7 @@ pub fn Encrypt(plain: &mut String, key: &Key) -> Vec<[u8; 16]> {
 
     message
 }
+
 pub fn Decrypt(mut crypt: Vec<[u8; 16]>, key: &Key) -> String {
     for i in 0..(crypt.len()) {
         DecryptionAlgorithm(&mut crypt[i], &key);
