@@ -17,7 +17,7 @@ pub enum InitKey {
 }
 
 // Key generation functions
-fn generate_init_key(init_key: &mut InitKey) {
+pub fn generate_init_key(init_key: &mut InitKey) {
     match init_key {
         InitKey::Bit128(key) => {
             if key.is_none() {
