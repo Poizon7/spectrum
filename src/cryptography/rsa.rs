@@ -1,5 +1,3 @@
-#![allow(non_snake_case)]
-
 extern crate rand;
 use rand::Rng;
 
@@ -18,7 +16,7 @@ fn gcd(e: i128, t: i128, x: &mut i128, y: &mut i128) -> i128 {
     return gcd;
 }
 
-fn EMod(m: u128, e: u128, n: u128) -> u128 {
+fn exponential_modulus(m: u128, e: u128, n: u128) -> u128 {
     let mut c = 1;
     let mut f = 0;
     while f < e {
@@ -29,7 +27,7 @@ fn EMod(m: u128, e: u128, n: u128) -> u128 {
 }
 
 // Public function to generate key
-pub fn GenerateKey() -> (u128, u128, u128) {
+pub fn generate_key() -> (u128, u128, u128) {
     let primes: [u128; 2] = [
         834546085180674575058629332681,
         107338188804765057603465338413,
@@ -54,10 +52,10 @@ pub fn GenerateKey() -> (u128, u128, u128) {
 }
 
 // Public function to encrypt/decrypt
-pub fn Encrypt(m: u128, e: u128, n: u128) -> u128 {
-    EMod(m, e, n)
+pub fn encrypt(m: u128, e: u128, n: u128) -> u128 {
+    exponential_modulus(m, e, n)
 }
 
-pub fn Decrypt(m: u128, d: u128, n: u128) -> u128 {
-    EMod(m, d, n)
+pub fn decrypt(m: u128, d: u128, n: u128) -> u128 {
+    exponential_modulus(m, d, n)
 }
