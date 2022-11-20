@@ -1,10 +1,8 @@
-#![allow(non_snake_case)]
-
 extern crate rand;
 use rand::Rng;
 
 // Key enums
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Key {
     Key128bit([u8; 176]),
     Key192bit([u8; 208]),
@@ -12,73 +10,79 @@ pub enum Key {
 }
 
 #[derive(Clone, Debug)]
-pub enum KeyLength {
+pub enum InitKey {
     Bit128(Option<[u8; 16]>),
     Bit192(Option<[u8; 24]>),
     Bit256(Option<[u8; 32]>),
 }
 
 // Key generation functions
-fn GenerateInitKey(initKey: &KeyLength) -> KeyLength {
-    match initKey {
-        KeyLength::Bit128(_) => {
-            let mut key = [0; 16];
-            for i in 0..16 {
-                key[i] = rand::thread_rng().gen();
+fn generate_init_key(init_key: &mut InitKey) {
+    match init_key {
+        InitKey::Bit128(key) => {
+            if key.is_none() {
+                let mut key = [0; 16];
+                for i in 0..16 {
+                    key[i] = rand::thread_rng().gen();
+                }
+                *init_key = InitKey::Bit128(Some(key))
             }
-            KeyLength::Bit128(Some(key))
         }
-        KeyLength::Bit192(_) => {
-            let mut key = [0; 24];
-            for i in 0..24 {
-                key[i] = rand::thread_rng().gen();
+        InitKey::Bit192(key) => {
+            if key.is_none() {
+                let mut key = [0; 24];
+                for i in 0..24 {
+                    key[i] = rand::thread_rng().gen();
+                }
+                *init_key = InitKey::Bit192(Some(key))
             }
-            KeyLength::Bit192(Some(key))
         }
-        KeyLength::Bit256(_) => {
-            let mut key = [0; 32];
-            for i in 0..32 {
-                key[i] = rand::thread_rng().gen();
+        InitKey::Bit256(key) => {
+            if key.is_none() {
+                let mut key = [0; 32];
+                for i in 0..32 {
+                    key[i] = rand::thread_rng().gen();
+                }
+                *init_key = InitKey::Bit256(Some(key))
             }
-            KeyLength::Bit256(Some(key))
         }
     }
 }
 
-fn ExpandKey(initKey: &KeyLength) -> Key {
+fn expand_key(init_key: &InitKey) -> Key {
     let mut temp: [u8; 4] = [0, 0, 0, 0];
-    let mut c: u8 = match initKey {
-        KeyLength::Bit128(_) => 16,
-        KeyLength::Bit192(_) => 24,
-        KeyLength::Bit256(_) => 32,
+    let mut c: u8 = match init_key {
+        InitKey::Bit128(_) => 16,
+        InitKey::Bit192(_) => 24,
+        InitKey::Bit256(_) => 32,
     };
     let mut i = 1;
-    let key = match initKey {
-        KeyLength::Bit128(_) => Key::Key128bit([0; 176]),
-        KeyLength::Bit192(_) => Key::Key192bit([0; 208]),
-        KeyLength::Bit256(_) => Key::Key256bit([0; 240]),
+    let key = match init_key {
+        InitKey::Bit128(_) => Key::Key128bit([0; 176]),
+        InitKey::Bit192(_) => Key::Key192bit([0; 208]),
+        InitKey::Bit256(_) => Key::Key256bit([0; 240]),
     };
 
     match key {
         Key::Key128bit(mut key) => {
-            for byte in match initKey {
-                KeyLength::Bit128(initKey) => initKey.unwrap(),
+            for byte in match init_key {
+                InitKey::Bit128(init_key) => init_key.unwrap(),
                 _ => panic!("Missmatch between init key and key"),
             } {
                 key[i as usize] = byte;
             }
         }
         Key::Key192bit(mut key) => {
-            for byte in match initKey {
-                KeyLength::Bit192(initKey) => initKey.unwrap(),
+            for byte in match init_key {
+                InitKey::Bit192(init_key) => init_key.unwrap(),
                 _ => panic!("Missmatch between init key and key"),
             } {
                 key[i as usize] = byte;
             }
         }
         Key::Key256bit(mut key) => {
-            for byte in match initKey {
-                KeyLength::Bit256(initKey) => initKey.unwrap(),
+            for byte in match init_key {
+                InitKey::Bit256(init_key) => init_key.unwrap(),
                 _ => panic!("Missmatch between init key and key"),
             } {
                 key[i as usize] = byte;
@@ -115,7 +119,7 @@ fn ExpandKey(initKey: &KeyLength) -> Key {
             Key::Key256bit(_) => 32,
         } == 0
         {
-            ScheduleCore(&mut temp, i);
+            schedule_core(&mut temp, i);
             i += 1;
         }
 
@@ -125,7 +129,7 @@ fn ExpandKey(initKey: &KeyLength) -> Key {
         } && c % 32 == 16
         {
             for j in 0..4 {
-                Sbox(temp[j]);
+                sbox(temp[j]);
             }
         }
 
@@ -164,7 +168,7 @@ fn ExpandKey(initKey: &KeyLength) -> Key {
 }
 
 // Key expand function
-fn Rotate(byte: &mut [u8; 4]) {
+fn rotate(byte: &mut [u8; 4]) {
     let temp = byte[0];
 
     for i in 0..3 {
@@ -174,7 +178,7 @@ fn Rotate(byte: &mut [u8; 4]) {
     byte[3] = temp;
 }
 
-fn Rcon(mut byte: u8) -> u8 {
+fn rcon(mut byte: u8) -> u8 {
     let mut c: u8 = 1;
 
     if byte == 0 {
@@ -193,46 +197,22 @@ fn Rcon(mut byte: u8) -> u8 {
     return c;
 }
 
-fn ScheduleCore(byte: &mut [u8; 4], i: u8) {
-    Rotate(byte);
+fn schedule_core(byte: &mut [u8; 4], i: u8) {
+    rotate(byte);
     for j in 0..4 {
-        Sbox(byte[j]);
+        sbox(byte[j]);
     }
-    byte[0] ^= Rcon(i);
+    byte[0] ^= rcon(i);
 }
 
 // Public functions to generate key
-pub fn GenerateKey(bit: &KeyLength) -> Key {
-    match bit {
-        KeyLength::Bit128(initKey) => {
-            let initKey = if initKey.is_none() {
-                GenerateInitKey(bit)
-            } else {
-                KeyLength::Bit128(*initKey)
-            };
-            ExpandKey(&initKey)
-        }
-        KeyLength::Bit192(initKey) => {
-            let initKey = if initKey.is_none() {
-                GenerateInitKey(bit)
-            } else {
-                KeyLength::Bit192(*initKey)
-            };
-            ExpandKey(&initKey)
-        }
-        KeyLength::Bit256(initKey) => {
-            let initKey = if initKey.is_none() {
-                GenerateInitKey(bit)
-            } else {
-                KeyLength::Bit256(*initKey)
-            };
-            ExpandKey(&initKey)
-        }
-    }
+pub fn generate_key(init_key: &mut InitKey) -> Key {
+    generate_init_key(init_key);
+    expand_key(&init_key)
 }
 
 // Cryptography
-fn PlainToMatrix(plain: &str) -> [u8; 16] {
+fn plain_to_matrix(plain: &str) -> [u8; 16] {
     let mut plain = String::from(plain.trim_end());
 
     while plain.len() < 16 {
@@ -247,13 +227,13 @@ fn PlainToMatrix(plain: &str) -> [u8; 16] {
     ]
 }
 
-fn AddKey(matrix: &mut [u8; 16], key: &[u8]) {
+fn add_key(matrix: &mut [u8; 16], key: &[u8]) {
     for i in 0..16 {
         matrix[(i)] ^= key[i];
     }
 }
 
-fn FFM(n1: u8, n2: u8) -> u8 {
+fn finite_field_multiplication(n1: u8, n2: u8) -> u8 {
     let mut a: u8 = n1;
     let mut b: u8 = n2;
     let mut p: u8 = 0;
@@ -278,7 +258,7 @@ fn FFM(n1: u8, n2: u8) -> u8 {
 }
 
 // Encrypt
-fn Sbox(byte: u8) -> u8 {
+fn sbox(byte: u8) -> u8 {
     let sbox: [u8; 256] = [
         0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab,
         0x76, 0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4,
@@ -303,7 +283,7 @@ fn Sbox(byte: u8) -> u8 {
     sbox[byte as usize]
 }
 
-fn ShiftRows(matrix: &mut [u8; 16]) {
+fn shift_rows(matrix: &mut [u8; 16]) {
     let temp = matrix[4];
 
     for i in 4..7 {
@@ -329,7 +309,7 @@ fn ShiftRows(matrix: &mut [u8; 16]) {
     matrix[12] = temp;
 }
 
-fn MixColumns(matrix: &mut [u8; 16]) {
+fn mix_columns(matrix: &mut [u8; 16]) {
     for i in 0..4 {
         let c = [
             matrix[i * 4],
@@ -338,80 +318,92 @@ fn MixColumns(matrix: &mut [u8; 16]) {
             matrix[(i * 4) + 3],
         ];
 
-        matrix[i * 4] = FFM(2, c[0]) ^ FFM(3, c[1]) ^ FFM(1, c[2]) ^ FFM(1, c[3]);
-        matrix[(i * 4) + 1] = FFM(1, c[0]) ^ FFM(2, c[1]) ^ FFM(3, c[2]) ^ FFM(1, c[3]);
-        matrix[(i * 4) + 2] = FFM(1, c[0]) ^ FFM(1, c[1]) ^ FFM(2, c[2]) ^ FFM(3, c[3]);
-        matrix[(i * 4) + 3] = FFM(3, c[0]) ^ FFM(1, c[1]) ^ FFM(1, c[2]) ^ FFM(2, c[3]);
+        matrix[i * 4] = finite_field_multiplication(2, c[0])
+            ^ finite_field_multiplication(3, c[1])
+            ^ finite_field_multiplication(1, c[2])
+            ^ finite_field_multiplication(1, c[3]);
+        matrix[(i * 4) + 1] = finite_field_multiplication(1, c[0])
+            ^ finite_field_multiplication(2, c[1])
+            ^ finite_field_multiplication(3, c[2])
+            ^ finite_field_multiplication(1, c[3]);
+        matrix[(i * 4) + 2] = finite_field_multiplication(1, c[0])
+            ^ finite_field_multiplication(1, c[1])
+            ^ finite_field_multiplication(2, c[2])
+            ^ finite_field_multiplication(3, c[3]);
+        matrix[(i * 4) + 3] = finite_field_multiplication(3, c[0])
+            ^ finite_field_multiplication(1, c[1])
+            ^ finite_field_multiplication(1, c[2])
+            ^ finite_field_multiplication(2, c[3]);
     }
 }
 
-fn EncryptionAlgorithm(matrix: &mut [u8; 16], key: &Key) {
+fn encryption_algorithm(matrix: &mut [u8; 16], key: &Key) {
     match key {
         Key::Key128bit(key) => {
-            AddKey(matrix, &key[0..16]);
+            add_key(matrix, &key[0..16]);
 
             for round in 1..=9 {
                 for i in 0..16 {
-                    matrix[i] = Sbox(matrix[i]);
+                    matrix[i] = sbox(matrix[i]);
                 }
 
-                ShiftRows(matrix);
-                MixColumns(matrix);
-                AddKey(matrix, &key[(round * 16)..((round * 16) + 16)]);
+                shift_rows(matrix);
+                mix_columns(matrix);
+                add_key(matrix, &key[(round * 16)..((round * 16) + 16)]);
             }
 
             for i in 0..16 {
-                matrix[i] = Sbox(matrix[i]);
+                matrix[i] = sbox(matrix[i]);
             }
 
-            ShiftRows(matrix);
-            AddKey(matrix, &key[160..176]);
+            shift_rows(matrix);
+            add_key(matrix, &key[160..176]);
         }
         Key::Key192bit(key) => {
-            AddKey(matrix, &key[0..16]);
+            add_key(matrix, &key[0..16]);
 
             for round in 1..=11 {
                 for i in 0..16 {
-                    matrix[i] = Sbox(matrix[i]);
+                    matrix[i] = sbox(matrix[i]);
                 }
 
-                ShiftRows(matrix);
-                MixColumns(matrix);
-                AddKey(matrix, &key[(round * 16)..((round * 16) + 16)]);
+                shift_rows(matrix);
+                mix_columns(matrix);
+                add_key(matrix, &key[(round * 16)..((round * 16) + 16)]);
             }
 
             for i in 0..16 {
-                matrix[i] = Sbox(matrix[i]);
+                matrix[i] = sbox(matrix[i]);
             }
 
-            ShiftRows(matrix);
-            AddKey(matrix, &key[192..208]);
+            shift_rows(matrix);
+            add_key(matrix, &key[192..208]);
         }
         Key::Key256bit(key) => {
-            AddKey(matrix, &key[0..16]);
+            add_key(matrix, &key[0..16]);
 
             for round in 1..=13 {
                 for i in 0..16 {
-                    matrix[i] = Sbox(matrix[i]);
+                    matrix[i] = sbox(matrix[i]);
                 }
 
-                ShiftRows(matrix);
-                MixColumns(matrix);
-                AddKey(matrix, &key[(round * 16)..((round * 16) + 16)]);
+                shift_rows(matrix);
+                mix_columns(matrix);
+                add_key(matrix, &key[(round * 16)..((round * 16) + 16)]);
             }
 
             for i in 0..16 {
-                matrix[i] = Sbox(matrix[i]);
+                matrix[i] = sbox(matrix[i]);
             }
 
-            ShiftRows(matrix);
-            AddKey(matrix, &key[224..240]);
+            shift_rows(matrix);
+            add_key(matrix, &key[224..240]);
         }
     }
 }
 
 // Decryption
-fn ReverseSbox(byte: u8) -> u8 {
+fn reverse_sbox(byte: u8) -> u8 {
     let sbox: [u8; 256] = [
         0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab,
         0x76, 0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4,
@@ -442,7 +434,7 @@ fn ReverseSbox(byte: u8) -> u8 {
     0
 }
 
-fn ReverseShiftRows(matrix: &mut [u8; 16]) {
+fn reverse_shift_rows(matrix: &mut [u8; 16]) {
     let temp = matrix[7];
 
     for i in (4..8).rev() {
@@ -468,7 +460,7 @@ fn ReverseShiftRows(matrix: &mut [u8; 16]) {
     matrix[15] = temp;
 }
 
-fn ReverseMixColumns(matrix: &mut [u8; 16]) {
+fn reverse_mix_columns(matrix: &mut [u8; 16]) {
     for i in 0..4 {
         let c = [
             matrix[i * 4],
@@ -477,80 +469,92 @@ fn ReverseMixColumns(matrix: &mut [u8; 16]) {
             matrix[(i * 4) + 3],
         ];
 
-        matrix[(i * 4)] = FFM(14, c[0]) ^ FFM(11, c[1]) ^ FFM(13, c[2]) ^ FFM(9, c[3]);
-        matrix[(i * 4) + 1] = FFM(9, c[0]) ^ FFM(14, c[1]) ^ FFM(11, c[2]) ^ FFM(13, c[3]);
-        matrix[(i * 4) + 2] = FFM(13, c[0]) ^ FFM(9, c[1]) ^ FFM(14, c[2]) ^ FFM(11, c[3]);
-        matrix[(i * 4) + 3] = FFM(11, c[0]) ^ FFM(13, c[1]) ^ FFM(9, c[2]) ^ FFM(14, c[3]);
+        matrix[(i * 4)] = finite_field_multiplication(14, c[0])
+            ^ finite_field_multiplication(11, c[1])
+            ^ finite_field_multiplication(13, c[2])
+            ^ finite_field_multiplication(9, c[3]);
+        matrix[(i * 4) + 1] = finite_field_multiplication(9, c[0])
+            ^ finite_field_multiplication(14, c[1])
+            ^ finite_field_multiplication(11, c[2])
+            ^ finite_field_multiplication(13, c[3]);
+        matrix[(i * 4) + 2] = finite_field_multiplication(13, c[0])
+            ^ finite_field_multiplication(9, c[1])
+            ^ finite_field_multiplication(14, c[2])
+            ^ finite_field_multiplication(11, c[3]);
+        matrix[(i * 4) + 3] = finite_field_multiplication(11, c[0])
+            ^ finite_field_multiplication(13, c[1])
+            ^ finite_field_multiplication(9, c[2])
+            ^ finite_field_multiplication(14, c[3]);
     }
 }
 
-fn DecryptionAlgorithm(matrix: &mut [u8; 16], key: &Key) {
+fn decryption_algorithm(matrix: &mut [u8; 16], key: &Key) {
     match key {
         Key::Key128bit(key) => {
-            AddKey(matrix, &key[160..176]);
-            ReverseShiftRows(matrix);
+            add_key(matrix, &key[160..176]);
+            reverse_shift_rows(matrix);
 
             for i in 0..16 {
-                matrix[i] = ReverseSbox(matrix[i]);
+                matrix[i] = reverse_sbox(matrix[i]);
             }
 
             for round in (1..=9).rev() {
-                AddKey(matrix, &key[(round * 16)..((round * 16) + 16)]);
-                ReverseMixColumns(matrix);
-                ReverseShiftRows(matrix);
+                add_key(matrix, &key[(round * 16)..((round * 16) + 16)]);
+                reverse_mix_columns(matrix);
+                reverse_shift_rows(matrix);
 
                 for i in 0..16 {
-                    matrix[i] = ReverseSbox(matrix[i]);
+                    matrix[i] = reverse_sbox(matrix[i]);
                 }
             }
 
-            AddKey(matrix, &key[0..16]);
+            add_key(matrix, &key[0..16]);
         }
         Key::Key192bit(key) => {
-            AddKey(matrix, &key[192..208]);
-            ReverseShiftRows(matrix);
+            add_key(matrix, &key[192..208]);
+            reverse_shift_rows(matrix);
 
             for i in 0..16 {
-                matrix[i] = ReverseSbox(matrix[i]);
+                matrix[i] = reverse_sbox(matrix[i]);
             }
 
             for round in (1..=11).rev() {
-                AddKey(matrix, &key[(round * 16)..((round * 16) + 16)]);
-                ReverseMixColumns(matrix);
-                ReverseShiftRows(matrix);
+                add_key(matrix, &key[(round * 16)..((round * 16) + 16)]);
+                reverse_mix_columns(matrix);
+                reverse_shift_rows(matrix);
 
                 for i in 0..16 {
-                    matrix[i] = ReverseSbox(matrix[i]);
+                    matrix[i] = reverse_sbox(matrix[i]);
                 }
             }
 
-            AddKey(matrix, &key[0..16]);
+            add_key(matrix, &key[0..16]);
         }
         Key::Key256bit(key) => {
-            AddKey(matrix, &key[224..240]);
-            ReverseShiftRows(matrix);
+            add_key(matrix, &key[224..240]);
+            reverse_shift_rows(matrix);
 
             for i in 0..16 {
-                matrix[i] = ReverseSbox(matrix[i]);
+                matrix[i] = reverse_sbox(matrix[i]);
             }
 
             for round in (1..=13).rev() {
-                AddKey(matrix, &key[(round * 16)..((round * 16) + 16)]);
-                ReverseMixColumns(matrix);
-                ReverseShiftRows(matrix);
+                add_key(matrix, &key[(round * 16)..((round * 16) + 16)]);
+                reverse_mix_columns(matrix);
+                reverse_shift_rows(matrix);
 
                 for i in 0..16 {
-                    matrix[i] = ReverseSbox(matrix[i]);
+                    matrix[i] = reverse_sbox(matrix[i]);
                 }
             }
 
-            AddKey(matrix, &key[0..16]);
+            add_key(matrix, &key[0..16]);
         }
     }
 }
 
 // Public functions to encrypt/decrypt
-pub fn Encrypt(plain: &mut String, key: &Key) -> Vec<[u8; 16]> {
+pub fn encrypt(plain: &mut String, key: &Key) -> Vec<[u8; 16]> {
     let mut matrix: Vec<[u8; 16]> = Vec::new();
 
     while plain.len() % 16 != 0 {
@@ -558,8 +562,8 @@ pub fn Encrypt(plain: &mut String, key: &Key) -> Vec<[u8; 16]> {
     }
 
     for i in 0..(&plain.len() / 16) {
-        matrix.push(PlainToMatrix(&plain[i * 16..(i + 1) * 16]));
-        EncryptionAlgorithm(&mut matrix[i], key);
+        matrix.push(plain_to_matrix(&plain[i * 16..(i + 1) * 16]));
+        encryption_algorithm(&mut matrix[i], key);
     }
 
     let mut message = Vec::new();
@@ -571,9 +575,9 @@ pub fn Encrypt(plain: &mut String, key: &Key) -> Vec<[u8; 16]> {
     message
 }
 
-pub fn Decrypt(mut crypt: Vec<[u8; 16]>, key: &Key) -> String {
+pub fn decrypt(mut crypt: Vec<[u8; 16]>, key: &Key) -> String {
     for i in 0..(crypt.len()) {
-        DecryptionAlgorithm(&mut crypt[i], &key);
+        decryption_algorithm(&mut crypt[i], &key);
     }
 
     let mut message: String = String::new();
