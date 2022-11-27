@@ -73,9 +73,21 @@ impl AES {
         }
     }
 
-    pub fn generate_init_key(&mut self) {
+    pub fn from(bytes: &[u8]) -> Result<AES, AESError> {
+        let mut aes = AES {
+            key_size: KeySize::Bit256,
+            init_key: None,
+            key: None,
+        };
+        aes.generate_init_key_from(bytes)?;
+        aes.expand_key();
+
+        Ok(aes)
+    }
+
+    pub fn generate_init_key_from(&mut self, bytes: &[u8]) -> Result<(), AESError> {
         match self.key_size {
-            KeySize::Bit128 => {
+            /*KeySize::Bit128 => {
                 let mut key = [0; 16];
                 for i in 0..16 {
                     key[i] = rand::thread_rng().gen();
@@ -88,10 +100,40 @@ impl AES {
                     key[i] = rand::thread_rng().gen();
                 }
                 self.init_key = Some(InitKey::Bit192(key));
+            }*/
+            KeySize::Bit256 => {
+                if bytes.len() == 32 {
+                    let mut key = [0; 32];
+                    for i in 0..32 {
+                        key[i] = *bytes.get(i).unwrap();
+                    }
+                    self.init_key = Some(InitKey::Bit256(key));
+                }
+                Ok(())
+            }
+            _ => Err(AESError::IncorrectKeySize),
+        }
+    }
+
+    pub fn generate_init_key(&mut self) {
+        match self.key_size {
+            KeySize::Bit128 => {
+                let mut key = [0; 16];
+                for i in 0..16 {
+                    key[i] = rand::thread_rng().gen();
+                }
+                self.init_key = Some(InitKey::Bit128(key));
+            }
+            KeySize::Bit192 => {
+                let mut key = [0; 24];
+                for i in 0..24 {
+                    key[i] = rand::thread_rng().gen();
+                }
+                self.init_key = Some(InitKey::Bit192(key));
             }
             KeySize::Bit256 => {
                 let mut key = [0; 32];
-                for i in 0..16 {
+                for i in 0..32 {
                     key[i] = rand::thread_rng().gen();
                 }
                 self.init_key = Some(InitKey::Bit256(key));
@@ -292,7 +334,7 @@ impl CryptographicAlgorithm for AES {
             None => Err(CryptoError::AESError(AESError::EmptyKey)),
         }
     }
-    
+
     fn decrypt(&self, cipher: &mut [u8]) -> Result<Vec<u8>, CryptoError> {
         match &self.key {
             Some(key) => {
