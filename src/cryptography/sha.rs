@@ -1,4 +1,6 @@
-use super::HashingAlgorithm;
+use crate::cryptography::HashingAlgorithm;
+use crate::format::u8_to_hex;
+use crate::math::right_rotate;
 
 pub enum SHAType {
     SHA256,
@@ -136,36 +138,4 @@ impl HashingAlgorithm for SHA {
             }
         }
     }
-}
-
-fn right_rotate(mut bytes: u32, amount: u8) -> u32 {
-    let base: u32 = 2;
-    let mut num = if amount > 0 { 1 } else { 0 };
-    for i in 1..=amount {
-        num += base.pow(i as u32);
-    }
-
-    let mut part = bytes & num;
-    bytes = bytes >> amount;
-    part = part << 32 - amount;
-    bytes += part;
-
-    bytes
-}
-
-fn u8_to_hex(vec: Vec<u8>) -> String {
-    let mut string = String::new();
-    let hex = [
-        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
-    ];
-
-    for i in vec {
-        let j = i / 16;
-        string += hex[j as usize];
-
-        let j = i % 16;
-        string += hex[j as usize];
-    }
-
-    string
 }

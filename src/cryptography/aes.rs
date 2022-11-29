@@ -1,7 +1,10 @@
 extern crate rand;
+
 use rand::Rng;
 
-use super::{CryptoError, CryptographicAlgorithm};
+use crate::cryptography::{CryptoError, CryptographicAlgorithm};
+use crate::format::hex_to_u8;
+use crate::math::finite_field_multiplication;
 
 // Key enums
 #[derive(Clone, Debug)]
@@ -18,6 +21,7 @@ enum InitKey {
     Bit256([u8; 32]),
 }
 
+#[derive(Debug)]
 enum KeySize {
     Bit128,
     Bit192,
@@ -30,6 +34,7 @@ pub enum AESError {
     EmptyKey,
 }
 
+#[derive(Debug)]
 pub struct AES {
     key_size: KeySize,
     init_key: Option<InitKey>,
@@ -73,13 +78,15 @@ impl AES {
         }
     }
 
-    pub fn from(bytes: &[u8]) -> Result<AES, AESError> {
+    pub fn from_hex(key: &str) -> Result<AES, AESError> {
+        let vec: Vec<u8> = hex_to_u8(key);
+
         let mut aes = AES {
             key_size: KeySize::Bit256,
             init_key: None,
             key: None,
         };
-        aes.generate_init_key_from(bytes)?;
+        aes.generate_init_key_from(vec.as_slice())?;
         aes.expand_key();
 
         Ok(aes)
@@ -108,8 +115,10 @@ impl AES {
                         key[i] = *bytes.get(i).unwrap();
                     }
                     self.init_key = Some(InitKey::Bit256(key));
+                    Ok(())
+                } else {
+                    Err(AESError::IncorrectKeySize)
                 }
-                Ok(())
             }
             _ => Err(AESError::IncorrectKeySize),
         }
@@ -369,30 +378,6 @@ impl AES {
             matrix[i] ^= key[i];
         }
     }
-
-    fn finite_field_multiplication(n1: u8, n2: u8) -> u8 {
-        let mut a: u8 = n1;
-        let mut b: u8 = n2;
-        let mut p: u8 = 0;
-
-        for _i in 0..=8 {
-            if (b & 0b00000001) == 1 {
-                p ^= a;
-            }
-
-            b = b >> 1;
-
-            let carry = if (a & 0b10000000) == 128 { 1 } else { 0 };
-
-            a = a << 1;
-
-            if carry == 1 {
-                a ^= 0x1b;
-            }
-        }
-
-        p
-    }
 }
 
 // Encryption
@@ -458,22 +443,22 @@ impl AES {
                 matrix[(i * 4) + 3],
             ];
 
-            matrix[i * 4] = AES::finite_field_multiplication(2, c[0])
-                ^ AES::finite_field_multiplication(3, c[1])
-                ^ AES::finite_field_multiplication(1, c[2])
-                ^ AES::finite_field_multiplication(1, c[3]);
-            matrix[(i * 4) + 1] = AES::finite_field_multiplication(1, c[0])
-                ^ AES::finite_field_multiplication(2, c[1])
-                ^ AES::finite_field_multiplication(3, c[2])
-                ^ AES::finite_field_multiplication(1, c[3]);
-            matrix[(i * 4) + 2] = AES::finite_field_multiplication(1, c[0])
-                ^ AES::finite_field_multiplication(1, c[1])
-                ^ AES::finite_field_multiplication(2, c[2])
-                ^ AES::finite_field_multiplication(3, c[3]);
-            matrix[(i * 4) + 3] = AES::finite_field_multiplication(3, c[0])
-                ^ AES::finite_field_multiplication(1, c[1])
-                ^ AES::finite_field_multiplication(1, c[2])
-                ^ AES::finite_field_multiplication(2, c[3]);
+            matrix[i * 4] = finite_field_multiplication(2, c[0])
+                ^ finite_field_multiplication(3, c[1])
+                ^ finite_field_multiplication(1, c[2])
+                ^ finite_field_multiplication(1, c[3]);
+            matrix[(i * 4) + 1] = finite_field_multiplication(1, c[0])
+                ^ finite_field_multiplication(2, c[1])
+                ^ finite_field_multiplication(3, c[2])
+                ^ finite_field_multiplication(1, c[3]);
+            matrix[(i * 4) + 2] = finite_field_multiplication(1, c[0])
+                ^ finite_field_multiplication(1, c[1])
+                ^ finite_field_multiplication(2, c[2])
+                ^ finite_field_multiplication(3, c[3]);
+            matrix[(i * 4) + 3] = finite_field_multiplication(3, c[0])
+                ^ finite_field_multiplication(1, c[1])
+                ^ finite_field_multiplication(1, c[2])
+                ^ finite_field_multiplication(2, c[3]);
         }
     }
 
@@ -610,22 +595,22 @@ impl AES {
                 matrix[(i * 4) + 3],
             ];
 
-            matrix[(i * 4)] = AES::finite_field_multiplication(14, c[0])
-                ^ AES::finite_field_multiplication(11, c[1])
-                ^ AES::finite_field_multiplication(13, c[2])
-                ^ AES::finite_field_multiplication(9, c[3]);
-            matrix[(i * 4) + 1] = AES::finite_field_multiplication(9, c[0])
-                ^ AES::finite_field_multiplication(14, c[1])
-                ^ AES::finite_field_multiplication(11, c[2])
-                ^ AES::finite_field_multiplication(13, c[3]);
-            matrix[(i * 4) + 2] = AES::finite_field_multiplication(13, c[0])
-                ^ AES::finite_field_multiplication(9, c[1])
-                ^ AES::finite_field_multiplication(14, c[2])
-                ^ AES::finite_field_multiplication(11, c[3]);
-            matrix[(i * 4) + 3] = AES::finite_field_multiplication(11, c[0])
-                ^ AES::finite_field_multiplication(13, c[1])
-                ^ AES::finite_field_multiplication(9, c[2])
-                ^ AES::finite_field_multiplication(14, c[3]);
+            matrix[(i * 4)] = finite_field_multiplication(14, c[0])
+                ^ finite_field_multiplication(11, c[1])
+                ^ finite_field_multiplication(13, c[2])
+                ^ finite_field_multiplication(9, c[3]);
+            matrix[(i * 4) + 1] = finite_field_multiplication(9, c[0])
+                ^ finite_field_multiplication(14, c[1])
+                ^ finite_field_multiplication(11, c[2])
+                ^ finite_field_multiplication(13, c[3]);
+            matrix[(i * 4) + 2] = finite_field_multiplication(13, c[0])
+                ^ finite_field_multiplication(9, c[1])
+                ^ finite_field_multiplication(14, c[2])
+                ^ finite_field_multiplication(11, c[3]);
+            matrix[(i * 4) + 3] = finite_field_multiplication(11, c[0])
+                ^ finite_field_multiplication(13, c[1])
+                ^ finite_field_multiplication(9, c[2])
+                ^ finite_field_multiplication(14, c[3]);
         }
     }
 
