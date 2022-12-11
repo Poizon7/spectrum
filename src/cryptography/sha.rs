@@ -1,5 +1,4 @@
 use crate::cryptography::HashingAlgorithm;
-use crate::format::u8_to_hex;
 use crate::math::right_rotate;
 
 pub enum SHAType {
@@ -19,7 +18,7 @@ impl SHA {
 }
 
 impl HashingAlgorithm for SHA {
-    fn hash(&self, mut message: Vec<u8>) -> String {
+    fn hash(&self, mut message: Vec<u8>) -> Vec<u8> {
         match self.kind {
             SHAType::SHA256 => {
                 // Defining variables
@@ -134,7 +133,7 @@ impl HashingAlgorithm for SHA {
                 hash.append(&mut h7.to_be_bytes().to_vec());
 
                 // Produce the final hash value (big-endian):
-                u8_to_hex(hash)
+                hash
             }
         }
     }
