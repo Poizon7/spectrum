@@ -9,6 +9,12 @@ pub struct SHA {
     kind: SHAType,
 }
 
+impl Default for SHA {
+    fn default() -> Self {
+        SHA::new()
+    }
+}
+
 impl SHA {
     pub fn new() -> SHA {
         SHA {
@@ -65,7 +71,7 @@ impl HashingAlgorithm for SHA {
                         let num = ((temp[i][0] as u32) << 24)
                             + ((temp[i][1] as u32) << 16)
                             + ((temp[i][2] as u32) << 8)
-                            + ((temp[i][3] as u32) << 0);
+                            + (temp[i][3] as u32);
                         w[i] = num;
                     }
                     // Extend the first 16 words into the remaining 48 words w[16..63] of the message schedule array:

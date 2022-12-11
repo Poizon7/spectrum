@@ -8,11 +8,11 @@ pub fn finite_field_multiplication(n1: u8, n2: u8) -> u8 {
             p ^= a;
         }
 
-        b = b >> 1;
+        b >>= 1;
 
-        let carry = if (a & 0b10000000) == 128 { 1 } else { 0 };
+        let carry = ((a & 0b10000000) == 128) as u8;
 
-        a = a << 1;
+        a <<= 1;
 
         if carry == 1 {
             a ^= 0x1b;
@@ -33,7 +33,7 @@ pub fn gcd(e: i128, t: i128, x: &mut i128, y: &mut i128) -> i128 {
     let gcd = gcd(t % e, e, &mut x1, &mut y1);
     *x = y1 - (t / e) * x1;
     *y = x1;
-    return gcd;
+    gcd
 }
 
 pub fn exponential_modulus(m: u128, e: u128, n: u128) -> u128 {
@@ -48,14 +48,14 @@ pub fn exponential_modulus(m: u128, e: u128, n: u128) -> u128 {
 
 pub fn right_rotate(mut bytes: u32, amount: u8) -> u32 {
     let base: u32 = 2;
-    let mut num = if amount > 0 { 1 } else { 0 };
+    let mut num = (amount > 0) as u32;
     for i in 1..=amount {
         num += base.pow(i as u32);
     }
 
     let mut part = bytes & num;
-    bytes = bytes >> amount;
-    part = part << 32 - amount;
+    bytes >>= amount;
+    part <<= 32 - amount;
     bytes += part;
 
     bytes

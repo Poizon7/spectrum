@@ -41,6 +41,12 @@ pub struct AES {
     key: Option<Key>,
 }
 
+impl Default for AES {
+    fn default() -> Self {
+        AES::new()
+    }
+}
+
 // Key generation
 impl AES {
     pub fn new() -> AES {
@@ -111,8 +117,8 @@ impl AES {
             KeySize::Bit256 => {
                 if bytes.len() == 32 {
                     let mut key = [0; 32];
-                    for i in 0..32 {
-                        key[i] = *bytes.get(i).unwrap();
+                    for (i, byte) in key.iter_mut().enumerate() {
+                        *byte = *bytes.get(i).unwrap();
                     }
                     self.init_key = Some(InitKey::Bit256(key));
                     Ok(())
@@ -128,22 +134,22 @@ impl AES {
         match self.key_size {
             KeySize::Bit128 => {
                 let mut key = [0; 16];
-                for i in 0..16 {
-                    key[i] = rand::thread_rng().gen();
+                for byte in key.iter_mut() {
+                    *byte = rand::thread_rng().gen();
                 }
                 self.init_key = Some(InitKey::Bit128(key));
             }
             KeySize::Bit192 => {
                 let mut key = [0; 24];
-                for i in 0..24 {
-                    key[i] = rand::thread_rng().gen();
+                for byte in key.iter_mut() {
+                    *byte = rand::thread_rng().gen();
                 }
                 self.init_key = Some(InitKey::Bit192(key));
             }
             KeySize::Bit256 => {
                 let mut key = [0; 32];
-                for i in 0..32 {
-                    key[i] = rand::thread_rng().gen();
+                for byte in key.iter_mut() {
+                    *byte = rand::thread_rng().gen();
                 }
                 self.init_key = Some(InitKey::Bit256(key));
             }
@@ -237,34 +243,32 @@ impl AES {
                     i += 1;
                 }
 
-                if match key {
-                    Key::Key256bit(_) => true,
-                    _ => false,
-                } && c % 32 == 16
+                if matches!(key, Key::Key256bit(_)) 
+                && c % 32 == 16
                 {
-                    for mut byte in temp.iter_mut() {
-                        AES::sbox(&mut byte);
+                    for byte in temp.iter_mut() {
+                        AES::sbox(byte);
                     }
                 }
 
                 match key {
                     Key::Key128bit(mut key_128) => {
-                        for j in 0..4 {
-                            key_128[c as usize] = key_128[(c - 16) as usize] ^ temp[j];
+                        for byte in temp {
+                            key_128[c as usize] = key_128[(c - 16) as usize] ^ byte;
                             c += 1;
                         }
                         key = Key::Key128bit(key_128);
                     }
                     Key::Key192bit(mut key_192) => {
-                        for j in 0..4 {
-                            key_192[c as usize] = key_192[(c - 24) as usize] ^ temp[j];
+                        for byte in temp {
+                            key_192[c as usize] = key_192[(c - 24) as usize] ^ byte;
                             c += 1;
                         }
                         key = Key::Key192bit(key_192);
                     }
                     Key::Key256bit(mut key_256) => {
-                        for j in 0..4 {
-                            key_256[c as usize] = key_256[(c - 32) as usize] ^ temp[j];
+                        for byte in temp {
+                            key_256[c as usize] = key_256[(c - 32) as usize] ^ byte;
                             c += 1;
                         }
                         key = Key::Key256bit(key_256);
@@ -302,7 +306,7 @@ impl AES {
             byte -= 1;
         }
 
-        return c;
+        c
     }
 
     fn schedule_core(bytes: &mut [u8; 4], i: u8) {

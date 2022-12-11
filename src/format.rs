@@ -37,7 +37,7 @@ pub fn hex_to_u8(mut string: &str) -> Vec<u8> {
     for byte in bytes {
         let num = hex
             .iter()
-            .position(|x| x == &byte.chars().nth(0).unwrap())
+            .position(|x| x == &byte.chars().next().unwrap())
             .unwrap()
             * 16
             + hex
