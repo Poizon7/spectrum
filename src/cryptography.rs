@@ -4,8 +4,6 @@ pub mod sha;
 
 use crate::format::{hex_to_u8, u8_to_hex};
 
-use std::str;
-
 #[derive(Debug)]
 pub enum CryptoError {
     AESError(aes::AESError),
@@ -21,10 +19,8 @@ pub fn encrypt(
     message: String,
 ) -> Result<String, CryptoError> {
     let mut message = message.into_bytes();
-    println!("{:?}", message);
     let message = message.as_mut_slice();
     let message = crypto.encrypt(message)?;
-    println!("{:?}", message);
     Ok(u8_to_hex(message))
 }
 
@@ -33,11 +29,10 @@ pub fn decrypt(
     cipher: String,
 ) -> Result<String, CryptoError> {
     let mut cipher = hex_to_u8(&cipher);
-    println!("{:?}", cipher);
     let cipher = cipher.as_mut_slice();
-    let cipher = crypto.decrypt(cipher)?;
-    println!("{:?}", cipher);
-    Ok(str::from_utf8(&cipher).unwrap().to_string())
+    let mut cipher = crypto.decrypt(cipher)?;
+    cipher.retain(|x| x != &(0));
+    Ok(String::from_utf8(cipher).unwrap())
 }
 
 pub fn encrypt_bytes(
