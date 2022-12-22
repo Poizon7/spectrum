@@ -26,13 +26,11 @@ pub fn hex_to_u8(mut string: &str) -> Vec<u8> {
         '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
     ];
     let mut bytes = Vec::new();
-    while string.len() > 2 {
+    while string.len() >= 2 {
         let byte: &str;
         (byte, string) = string.split_at(2);
         bytes.push(byte);
     }
-
-    bytes.push(string);
 
     for byte in bytes {
         let num = hex

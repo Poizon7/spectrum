@@ -4,9 +4,17 @@ pub mod sha;
 
 use crate::format::{hex_to_u8, u8_to_hex};
 
+use self::aes::AESError;
+
 #[derive(Debug)]
 pub enum CryptoError {
     AESError(aes::AESError),
+}
+
+impl From<AESError> for CryptoError {
+    fn from(error: AESError) -> Self {
+        Self::AESError(error)
+    }
 }
 
 pub trait CryptographicAlgorithm {

@@ -84,7 +84,7 @@ impl AES {
         }
     }
 
-    pub fn from_hex(key: &str) -> Result<AES, AESError> {
+    pub fn from_hex(key: &str) -> Result<AES, CryptoError> {
         let vec: Vec<u8> = hex_to_u8(key);
 
         let mut aes = AES {
@@ -117,8 +117,8 @@ impl AES {
             KeySize::Bit256 => {
                 if bytes.len() == 32 {
                     let mut key = [0; 32];
-                    for (i, byte) in key.iter_mut().enumerate() {
-                        *byte = *bytes.get(i).unwrap();
+                    for (i, byte) in bytes.iter().enumerate() {
+                        key[i] = *byte;
                     }
                     self.init_key = Some(InitKey::Bit256(key));
                     Ok(())
