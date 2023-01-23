@@ -2,58 +2,47 @@ pub mod aes;
 pub mod rsa;
 pub mod sha;
 
+use std::string::FromUtf8Error;
+
 use crate::format::{hex_to_u8, u8_to_hex};
 
-use self::aes::AESError;
-
-#[derive(Debug)]
-pub enum CryptoError {
-    AESError(aes::AESError),
-}
-
-impl From<AESError> for CryptoError {
-    fn from(error: AESError) -> Self {
-        Self::AESError(error)
-    }
-}
-
 pub trait CryptographicAlgorithm {
-    fn encrypt(&self, message: &mut [u8]) -> Result<Vec<u8>, CryptoError>;
-    fn decrypt(&self, cipher: &mut [u8]) -> Result<Vec<u8>, CryptoError>;
+    fn encrypt(&self, messge: &[u8]) -> Vec<u8>; 
+    fn decrypt(&self, cipher: &[u8]) -> Vec<u8>;
 }
 
 pub fn encrypt(
     crypto: &impl CryptographicAlgorithm,
     message: String,
-) -> Result<String, CryptoError> {
+) -> String {
     let mut message = message.into_bytes();
     let message = message.as_mut_slice();
-    let message = crypto.encrypt(message)?;
-    Ok(u8_to_hex(message))
+    let message = crypto.encrypt(message);
+    u8_to_hex(message)
 }
 
 pub fn decrypt(
     crypto: &impl CryptographicAlgorithm,
     cipher: String,
-) -> Result<String, CryptoError> {
+) -> Result<String, FromUtf8Error> {
     let mut cipher = hex_to_u8(&cipher);
     let cipher = cipher.as_mut_slice();
-    let mut cipher = crypto.decrypt(cipher)?;
+    let mut cipher = crypto.decrypt(cipher);
     cipher.retain(|x| x != &(0));
-    Ok(String::from_utf8(cipher).unwrap())
+    String::from_utf8(cipher)
 }
 
 pub fn encrypt_bytes(
     crypto: &impl CryptographicAlgorithm,
     message: &mut [u8],
-) -> Result<Vec<u8>, CryptoError> {
+) -> Vec<u8> {
     crypto.encrypt(message)
 }
 
 pub fn decrypt_bytes(
     crypto: &impl CryptographicAlgorithm,
     cipher: &mut [u8],
-) -> Result<Vec<u8>, CryptoError> {
+) -> Vec<u8> {
     crypto.decrypt(cipher)
 }
 
